@@ -1,0 +1,25 @@
+{
+  "submitter": {
+    "name": "SYNTHETIC TEST PRACTICE",
+    "id": "LOCALTEST",
+    "contact": "TEST CONTACT",
+    "phone": "8005550100"
+  },
+  "billing_taxonomy": "",
+  "payers": {
+    "SYNTHETIC TEST PAYER": {
+      "id": "STEDITEST",
+      "filing_indicator": "CI",
+      "confirmed": true,
+      "test_only": true
+    }
+  },
+  "rendering_providers": {
+    "1999999984": {
+      "first": "TEST",
+      "last": "PROVIDER",
+      "middle": "",
+      "taxonomy": ""
+    }
+  }
+}

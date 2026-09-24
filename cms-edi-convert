@@ -1,0 +1,15 @@
+#!/bin/sh
+cms_script=$0
+while [ -L "$cms_script" ]; do
+  cms_dir=$(CDPATH= cd -- "$(dirname -- "$cms_script")" && pwd)
+  cms_link=$(readlink "$cms_script")
+  case "$cms_link" in /*) cms_script=$cms_link ;; *) cms_script=$cms_dir/$cms_link ;; esac
+done
+cms_root=$(CDPATH= cd -- "$(dirname -- "$cms_script")" && pwd)
+for cms_python in "$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3" /usr/local/bin/python3 /opt/homebrew/bin/python3 /usr/bin/python3 "$(command -v python3)"; do
+  if [ -x "$cms_python" ] && "$cms_python" -c 'import sys; assert sys.version_info >= (3, 10)' >/dev/null 2>&1; then
+    exec "$cms_python" "$cms_root/cli.py" "$@"
+  fi
+done
+printf '%s\n' 'Python 3.10 or newer is required.' >&2
+exit 1

@@ -1,0 +1,7 @@
+{
+  "background_sha256": [
+    "762fab512731a2099b109afc7ce3aa4ebaebc7a8130c2d37ce29676175ad3765",
+    "662517b23b33112ea6a3587202cf885b0fc38a76410ee6765c75f84cf7d6284f"
+  ],
+  "description": "Hashes only. No patient data or source PDF is included."
+}

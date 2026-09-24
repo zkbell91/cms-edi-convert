@@ -1,0 +1,24 @@
+{
+  "submitter": {
+    "name": "Mosaic Minds Counseling, LLC",
+    "id": "LOCAL",
+    "contact": "Mosaic Minds Counseling, LLC",
+    "phone": "9044674668"
+  },
+  "billing_taxonomy": "",
+  "payers": {
+    "BCBS FL (Florida)": {
+      "id": "",
+      "filing_indicator": "BL",
+      "confirmed": false
+    }
+  },
+  "rendering_providers": {
+    "1104579432": {
+      "first": "Corey",
+      "last": "Bussiere",
+      "middle": "",
+      "taxonomy": ""
+    }
+  }
+}
