@@ -14,8 +14,8 @@ marker=target/'.cms-edi-install'
 if target.exists() and (not a.update or not marker.exists()):p.error('Installation already exists; use --update only for an existing installation of this converter.')
 if launcher.exists() or launcher.is_symlink():
     if not launcher.is_symlink() or launcher.resolve()!=(target/'cms-edi-convert').resolve():p.error('Another command already exists at '+str(launcher))
-shutil.copytree(source,target,dirs_exist_ok=a.update,ignore=shutil.ignore_patterns('__pycache__','*.pyc','settings.json','exports','.DS_Store'))
-marker.write_text('CMS-1500 to Stedi converter installation\n')
+shutil.copytree(source,target,dirs_exist_ok=a.update,ignore=shutil.ignore_patterns('__pycache__','*.pyc','settings.json','exports','.DS_Store','.git','.gitignore'))
+marker.write_text('CMS-1500 to 837P converter installation\n')
 (target/'cms-edi-convert').chmod(0o755)
 (target/'Run Converter.command').chmod(0o755)
 bin_dir.mkdir(parents=True,exist_ok=True)

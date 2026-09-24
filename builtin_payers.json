@@ -1,0 +1,55 @@
+{
+  "comment": "Maps CMS-1500 carrier headings (cname) to professional-claim payer IDs. Matching is case-insensitive. User settings override these when a payer id is set.",
+  "payers": [
+    {
+      "id": "62308",
+      "filing_indicator": "CI",
+      "aliases": [
+        "CIGNA",
+        "Cigna",
+        "Cigna Health",
+        "Cigna Healthcare"
+      ]
+    },
+    {
+      "id": "SB590",
+      "filing_indicator": "BL",
+      "aliases": [
+        "BCBS FL (Florida)",
+        "Blue Cross Blue Shield of Florida",
+        "Florida Blue",
+        "BCBS Florida",
+        "BCBSF",
+        "BCBS FL"
+      ]
+    },
+    {
+      "id": "87726",
+      "filing_indicator": "CI",
+      "aliases": [
+        "United Healthcare",
+        "UnitedHealthcare",
+        "United Health Care",
+        "UHC",
+        "United Healthcare Community Plan"
+      ]
+    },
+    {
+      "id": "60054",
+      "filing_indicator": "CI",
+      "aliases": [
+        "Aetna",
+        "AETNA",
+        "Aetna Health"
+      ]
+    },
+    {
+      "id": "61101",
+      "filing_indicator": "CI",
+      "aliases": [
+        "Humana",
+        "HUMANA"
+      ]
+    }
+  ]
+}

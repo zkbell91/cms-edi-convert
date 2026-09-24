@@ -25,8 +25,8 @@ def parser():
     q.add_argument('input',type=Path);q.add_argument('output',type=Path)
     q.add_argument('--production',action='store_true',help='Write ISA15=P; default is T. Does NOT submit the file.')
     q.add_argument('--force',action='store_true',help='Explicitly replace existing output files')
-    q.add_argument('--quiet',action='store_true',help='Print output path only, instead of the claim review')
-    q.add_argument('--no-sidecars',action='store_true',help='Do not write .review.txt and .claim.json files')
+    q.add_argument('--verbose',action='store_true',help='Print the claim review to the terminal')
+    q.add_argument('--sidecars',action='store_true',help='Also write .review.txt and .claim.json beside the EDI')
     q=sub.add_parser('review',help='Validate and show the claim without generating EDI');common(q)
     q.add_argument('input',type=Path);q.add_argument('--json',action='store_true')
     q=sub.add_parser('fields',help='List every stored PDF field (does not expose old appearance-only values)')
@@ -47,7 +47,7 @@ def parser():
     a=ss.add_parser('unset',help='Delete a setting');a.add_argument('key')
     a=ss.add_parser('payer',help='Add/update a payer mapping')
     a.add_argument('name');a.add_argument('id');a.add_argument('--filing',choices=['CI','BL','HM','OF'],required=True)
-    a.add_argument('--verified',action='store_true',help='Record that you verified the payer ID in Stedi’s directory')
+    a.add_argument('--verified',action='store_true',help='Record that you verified this payer ID for professional claims')
     a=ss.add_parser('provider',help='Add/update a rendering provider')
     a.add_argument('npi');a.add_argument('--first',required=True);a.add_argument('--last',required=True)
     a.add_argument('--middle',default='');a.add_argument('--taxonomy',default='')
@@ -170,12 +170,12 @@ def main(argv=None):
                 'payer_claim_number':claim['original_payer_claim_number'],'frequency':claim['frequency'],'claim':claim}
         review=review_text(claim)+'\n\nOutgoing claim ID: '+control+'\nMode: '+mode+'\n'
         files=[(a.output,edi.encode('ascii'))]
-        if not a.no_sidecars:
+        if a.sidecars:
             files += [(a.output.with_suffix('.review.txt'),review.encode('utf-8')),
                       (a.output.with_suffix('.claim.json'),(json.dumps(record,indent=2)+'\n').encode('utf-8'))]
         require(all(path.resolve() not in (a.input.resolve(),cfg_path.resolve()) for path,_ in files), 'An output would overwrite the input PDF or settings; choose another destination.')
         write_outputs(files,a.force)
-        if not a.quiet:print(review+'\nSaved locally; nothing was submitted.\n')
+        if a.verbose:print(review,end='')
         print(a.output.resolve());return 0
     except (ConversionError,ValueError,OSError,TypeError,KeyError) as exc:
         print('Error: '+str(exc),file=sys.stderr);return 1

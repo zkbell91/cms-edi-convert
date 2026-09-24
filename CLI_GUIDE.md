@@ -12,15 +12,15 @@ The desktop app and CLI read the same persistent settings file. On this Mac it i
 cms-edi-convert ~/Downloads/cms1500.pdf ~/Downloads/cms1500.edi
 ```
 
-That validates the PDF, prints the extracted review, and saves the exact destination you named. It does not submit anything. Test mode is the default (`ISA15=T`). For a production file:
+That validates the PDF and writes only the `.edi` you named. On success it prints that path; errors go to stderr. It does not submit anything. Test mode is the default (`ISA15=T`). For a production file:
 
 ```sh
 cms-edi-convert ~/Downloads/cms1500.pdf ~/Downloads/cms1500.edi --production
 ```
 
-Files with spaces should be quoted. Existing outputs are protected; use a new name or explicitly add `--force` to overwrite. Missing destination directories are created. Errors return a nonzero exit status and prevent creation of an EDI file. The CLI does not require an interactive review checkbox; inspect its review yourself before uploading a production file.
+Files with spaces should be quoted. Existing outputs are protected; use a new name or explicitly add `--force` to overwrite. Missing destination directories are created. Errors return a nonzero exit status and prevent creation of an EDI file.
 
-By default, `cms1500.review.txt` and `cms1500.claim.json` are saved beside `cms1500.edi`. The JSON records the outgoing claim identifier and original account/reference mapping. `--no-sidecars` opts out. `--quiet` prints only the output path on success; errors still go to stderr.
+Use `cms-edi-convert review INPUT.pdf` to print the claim review without writing a file. Add `--verbose` on convert to print that review as well. Add `--sidecars` if you also want `cms1500.review.txt` and `cms1500.claim.json` beside the EDI (outgoing claim ID and source crosswalk).
 
 ## Inspect before generating
 
@@ -103,19 +103,19 @@ The generic `set` and `unset` commands support every configuration key. Use a JS
 Values are strings by default, so `00590` stays `00590`. To set booleans or entire objects, add `--json`:
 
 ```sh
-cms-edi-convert settings set '/payers/BCBS FL (Florida)/id' 'VERIFIED_STEDI_ID'
+cms-edi-convert settings set '/payers/BCBS FL (Florida)/id' '00590'
 cms-edi-convert settings set '/payers/BCBS FL (Florida)/confirmed' true --json
 cms-edi-convert settings unset '/payers/OLD PAYER NAME'
 ```
 
-Changing a payer ID with `set` clears its previous verification flag. Confirm the new ID before marking it verified. Convenient commands also exist:
+Changing a payer ID with `set` clears its previous verification flag. Confirm the new ID before marking it verified. Built-in IDs already cover Cigna, Florida Blue/BCBS FL, UnitedHealthcare, Aetna, and Humana—use `settings payer` only for overrides or payers not in `builtin_payers.json`. Convenient commands also exist:
 
 ```sh
-cms-edi-convert settings payer 'PAYER NAME AS PRINTED' 'VERIFIED_STEDI_ID' --filing BL --verified
+cms-edi-convert settings payer 'PAYER NAME AS PRINTED' '00590' --filing BL --verified
 cms-edi-convert settings provider 'PROVIDER_NPI' --first 'FIRST' --last 'LAST' --taxonomy 'TAXONOMY'
 ```
 
-Replace example placeholders with real values. `--verified` records your verification of the professional-claims route in Stedi's directory. Provider taxonomy is optional. The payer filing code must fit the actual plan; the available codes are not payer-specific recommendations.
+Replace example placeholders with real values. `--verified` records that you checked the payer ID for professional claims. Provider taxonomy is optional. The payer filing code must fit the actual plan; the available codes are not payer-specific recommendations.
 
 To edit the full configuration in your preferred Terminal editor:
 
@@ -138,11 +138,11 @@ Alternatively set `CMS_EDI_SETTINGS=/path/to/settings.json` for both interfaces.
 ## Installation on another Mac or Linux computer
 
 ```sh
-git clone git@github.com:zkbell91/cms-edi-convert.git
+git clone https://github.com/zkbell91/cms-edi-convert.git
 cd cms-edi-convert
 python3 install_cli.py
 ```
 
 It installs a private copy under `~/.local/share/cms-edi-convert` and a launcher at `~/.local/bin/cms-edi-convert`. If that bin directory is not in PATH, the installer tells you to add it (for zsh: `export PATH="$HOME/.local/bin:$PATH"`). It does not edit your shell startup files. Existing commands are not overwritten. Use `--update` for a later version of this program; shared settings are retained. A custom `--prefix` is available.
 
-You can also run `./cms-edi-convert` directly from the cloned repo without installing. Windows has `cms-edi-convert.cmd`; the Unix installer is not intended for Windows. No administrator privileges, Stedi API key, or network connection is required for conversion.
+You can also run `./cms-edi-convert` directly from the cloned repo without installing. Windows has `cms-edi-convert.cmd`; the Unix installer is not intended for Windows. No administrator privileges, API key, or network connection is required for conversion.

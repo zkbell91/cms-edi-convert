@@ -40,11 +40,28 @@ class Claims(unittest.TestCase):
     def test_preserves_payer_zeros(self):
         self.cfg['payers']['SYNTHETIC TEST PAYER']['id']='00590'
         self.assertIn('PI*00590~',build_edi(self.claim())[0])
-    def test_dob_century(self): self.f['3yy']='80';self.fails('FOUR-digit')
+    def test_dob_century(self):
+        self.f['3yy']='80'
+        self.assertEqual(claim_from_fields(self.f, config())['patient']['dob'], '19800412')
+        self.f['3yy']='61'
+        self.assertEqual(claim_from_fields(self.f, config())['patient']['dob'], '19610412')
+    def test_dob_two_digit_matches_insured(self):
+        self.f['3yy']='61';self.f['mm11a']='04';self.f['dd11a']='12';self.f['yy11a']='61'
+        claim_from_fields(self.f, config())
+
     def test_invalid_calendar_date(self): self.f['3dd']='31';self.f['3mm']='02';self.fails('calendar')
     def test_invalid_npi(self): self.f['grp33a.1']='1999999985';self.fails('check digit')
-    def test_unmapped_payer(self): self.f['cname']='NEW PAYER';self.fails('payer mapping')
+    def test_unmapped_payer(self): self.f['cname']='NEW PAYER';self.fails('No built-in payer ID')
     def test_unconfirmed_payer(self): self.cfg['payers']['SYNTHETIC TEST PAYER']['confirmed']=False;self.fails('Confirm')
+    def test_builtin_cigna(self):
+        self.f['cname']='CIGNA';del self.cfg['payers']
+        claim=claim_from_fields(self.f, self.cfg)
+        self.assertEqual(claim['payer']['id'],'62308')
+        self.assertEqual(claim['payer']['filing_indicator'],'CI')
+    def test_settings_override_builtin(self):
+        self.f['cname']='CIGNA'
+        self.cfg['payers']={'CIGNA':{'id':'99999','filing_indicator':'CI','confirmed':True}}
+        self.assertEqual(claim_from_fields(self.f, self.cfg)['payer']['id'],'99999')
     def test_demo_cannot_produce_live(self):
         with self.assertRaisesRegex(ConversionError,'only generate test'): build_edi(self.claim(),'P')
     def test_explicit_production(self):
@@ -56,7 +73,13 @@ class Claims(unittest.TestCase):
     def test_medicare_block(self): self.f['otheridd1']='';self.f['medicare1']='/Yes';self.fails('commercial')
     def test_multiple_relationships(self): self.f['child6']='/Yes';self.fails('exactly one')
     def test_self_mismatched_name(self): self.f['four']='EXAMPLE, SOMEONE';self.fails('names differ')
-    def test_reserved_separator(self): self.f['22ref']='ONE*TWO';self.fails('EDI separators')
+    def test_reserved_separator(self): self.f['22ref']='ONE|TWO';self.fails('EDI separators')
+    def test_prior_auth_keeps_asterisk(self):
+        self.f['code22']='';self.f['22ref']='';self.f['prior23']='262094137*O'
+        edi,_=build_edi(self.claim())
+        self.assertIn('REF|G1|262094137*O~',edi)
+        self.assertTrue(edi.startswith('ISA|'))
+        self.assertNotIn('REF*G1*',edi)
     def test_procedure_blank_with_line_data(self): self.f['24dcpt-1']='';self.fails('procedure')
     def test_missing_diag_pointer(self): self.f['24e-1']='B';self.fails('missing diagnosis')
     def test_multiple_lines_and_dates(self):

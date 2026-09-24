@@ -1,1 +1,41 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CMS-1500 converter — Start here</title><style>body{font:17px/1.6 system-ui,sans-serif;color:#203449;background:#f2f5f8;margin:0}main{max-width:820px;margin:44px auto;padding:40px;background:white;border-radius:16px}h1{font-size:36px;line-height:1.2}h2{font-size:23px;margin-top:34px}li{margin:12px 0}code{background:#eef2f6;padding:2px 5px}a{color:#1769aa}.note{background:#edf4fa;border-left:4px solid #3272a6;padding:15px 20px}.small{font-size:14px;color:#536778}</style><main><p class="small">LOCAL DESKTOP PROGRAM · VERSION 0.2.0</p><h1>Edit the PDF.<br>Review the claim.<br>Save an EDI file.</h1><p>This reusable converter reads the actual fields in the supplied TheraNest CMS-1500 template. It remembers your practice and payer settings. It does not upload claims or change TheraNest.</p><ol><li>Extract the whole ZIP. Double-click <strong>Run Converter.command</strong> on Mac, or <strong>Run Converter.bat</strong> on Windows.</li><li>Click <strong>Try synthetic demo</strong> to test the workflow with fictional data.</li><li>Open <strong>Practice &amp; payer settings</strong>. Enter the payer's verified Stedi ID; the Florida entry is intentionally blank. Keep leading zeros.</li><li>Edit and save your PDF using its form fields. For corrections, fill Box 22 with <strong>7 and the original payer claim number</strong>, change the CPT, and update charges if needed.</li><li>Choose the PDF, compare the extracted review with the saved form, then select <strong>Save EDI file</strong>. Test mode is the default.</li><li>Upload the resulting <code>.edi</code> in Stedi under <strong>Claims → Submit claim → Upload raw X12 file</strong>. Review Stedi's validation and acknowledgments.</li></ol><div class="note"><strong>Scope:</strong> One fillable form at a time, primary commercial outpatient claims, up to six service lines. This version stops on unsupported populated fields. Scans, flattened PDFs, secondary claims, and Medicare workflows are not supported.</div><h2>Terminal works too</h2><p><code>cms-edi-convert input.pdf output.edi</code></p><p>The CLI shares the desktop settings and can edit every PDF field and configuration setting. <a href="CLI_GUIDE.md">CLI instructions and examples</a>.</p><h2>When an edit does not display correctly</h2><p>The program checks stored field values against saved appearances. If they disagree, it stops. <strong>Refresh PDF fields</strong> creates a separate copy using the stored values. Open that copy and inspect it before conversion; your original stays unchanged. Use actual form fields, not white rectangles or added text boxes.</p><h2>Three details to check</h2><ul><li>Enter four-digit birth years. Two-digit service years are treated as 20xx.</li><li>The original payer claim number in Box 22 is different from your internal account number in Box 26.</li><li>Box 29 is actual patient money already paid, not estimated copay or insurer payment.</li></ul><h2>What gets saved</h2><p>A folder with the EDI file, readable review, and a record connecting the source account number to the new outgoing claim identifier. Keep these alongside your claim records.</p><p><strong>No live Stedi acceptance test has been performed.</strong> The included synthetic example generates test files only. Production files are clearly marked and can be sent to payers if you later submit them.</p><p class="small">Requires Python 3.10+ and Tkinter; the launcher can use this Mac's installed Codex runtime. PDF dependencies are bundled. Windows launcher supplied but not tested on Windows.</p><p><a href="README.md">Full instructions, supported fields, limitations, and sources</a></p></main></html>
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CMS-1500 converter — Start here</title>
+<style>
+body{font:17px/1.6 system-ui,sans-serif;color:#203449;background:#f2f5f8;margin:0}
+main{max-width:820px;margin:44px auto;padding:40px;background:white;border-radius:16px}
+h1{font-size:36px;line-height:1.2}h2{font-size:23px;margin-top:34px}
+li{margin:12px 0}code{background:#eef2f6;padding:2px 5px}a{color:#1769aa}
+.note{background:#edf4fa;border-left:4px solid #3272a6;padding:15px 20px}
+.small{font-size:14px;color:#536778}
+</style>
+<main>
+<p class="small">LOCAL DESKTOP PROGRAM · VERSION 0.2.0</p>
+<h1>Edit the PDF.<br>Review the claim.<br>Save an EDI file.</h1>
+<p>This converter reads fillable CMS-1500 form fields and writes a local 837P file. It remembers practice and payer settings. It does not upload claims.</p>
+<ol>
+<li>Install with <code>python3 install_cli.py</code>, or double-click <strong>Run Converter.command</strong> (Mac) / <strong>Run Converter.bat</strong> (Windows).</li>
+<li>Click <strong>Try synthetic demo</strong> to test with fictional data.</li>
+<li>Open <strong>Practice &amp; payer settings</strong>. Add rendering-provider names. Common commercial payers resolve automatically; override a payer ID only when needed.</li>
+<li>Edit and save your PDF using its form fields. For corrections, put <strong>7</strong> in Box 22 with the payer’s original claim number.</li>
+<li>Choose the PDF, compare the review to the form, then <strong>Save EDI file</strong>. Test mode is the default.</li>
+<li>Upload the <code>.edi</code> through your clearinghouse or payer channel and review their acknowledgments.</li>
+</ol>
+<div class="note"><strong>Scope:</strong> One fillable form at a time, primary commercial outpatient claims, up to six service lines. Scans, flattened PDFs, secondary claims, and Medicare workflows are not supported.</div>
+<h2>Terminal</h2>
+<p><code>cms-edi-convert input.pdf output.edi</code></p>
+<p>See <a href="CLI_GUIDE.md">CLI_GUIDE.md</a> for review, fields, refresh, and settings commands.</p>
+<h2>When an edit does not display correctly</h2>
+<p>If stored values disagree with the on-screen appearance, conversion stops. <strong>Refresh PDF fields</strong> creates a separate copy from stored values. Inspect that copy before converting.</p>
+<h2>Check these</h2>
+<ul>
+<li>Confirm expanded birth dates in the review (two-digit years on the form are expanded).</li>
+<li>Box 22’s payer claim number is not your Box 26 account number.</li>
+<li>Box 29 is actual patient money already paid.</li>
+</ul>
+<p class="small">Requires Python 3.10+ with Tkinter. PDF libraries are bundled.</p>
+<p><a href="README.md">Full README</a></p>
+</main>
+</html>

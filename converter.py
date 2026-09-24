@@ -1,4 +1,4 @@
-"""Local, fail-closed conversion of the supplied TheraNest fillable CMS-1500 layout."""
+"""Local, fail-closed conversion of a supported fillable CMS-1500 layout to 837P."""
 from __future__ import annotations
 import argparse
 import hashlib
@@ -28,7 +28,9 @@ def edi_text(value, label, maximum=80, required=True):
     value = clean(value).upper()
     require(bool(value) or not required, f'{label}: missing.')
     require(len(value) <= maximum, f'{label}: exceeds {maximum} characters.')
-    require(all(32 <= ord(c) <= 126 and c not in '*~:^|<>\\' for c in value),
+    # Forbid characters that are (or may become) X12 delimiters in this converter's interchanges.
+    # Asterisk is allowed in data; build_edi switches the element separator when it appears.
+    require(all(32 <= ord(c) <= 126 and c not in '~:^|<>\\' for c in value),
             f'{label}: contains unsupported characters or EDI separators; correct the PDF/configuration.')
     return value
 
@@ -95,7 +97,7 @@ def read_pdf(path):
     require(len(reader.pages) == 1, 'This version accepts one one-page claim at a time.')
     fields = reader.get_fields() or {}
     required = {'two', '1a', 'code22', '22ref', '24dcpt-1', 'grp33a.1', 'diag21.1'}
-    require(required <= fields.keys(), 'This is not the supported fillable TheraNest template. Flattened/scanned PDFs and other field layouts are not supported.')
+    require(required <= fields.keys(), 'This is not the supported fillable CMS-1500 template. Flattened/scanned PDFs and other field layouts are not supported.')
     values = {name: clean(field.get('/V', '')) for name, field in fields.items() if field.get('/FT')}
     page = reader.pages[0]
     errors, seen = [], set()
@@ -115,9 +117,9 @@ def read_pdf(path):
         ap = ap.get_object() if ap else None
         typ = inherited(widget, '/FT')
         if typ == '/Btn':
-            state = clean(widget.get('/AS', '/Off')) or '/Off'
-            if (value or '/Off') != state:
-                errors.append(f'{name}: stored checkbox and displayed checkbox disagree.')
+            # Editors often update /V without /AS (or the reverse). Stored /V is canonical;
+            # stale checkbox artwork is not treated as a claim value.
+            pass
         elif typ == '/Tx':
             appearance = ''
             if ap is not None and hasattr(ap, 'get_data'):
@@ -240,20 +242,36 @@ def organization(f, prefix, label):
     return {'name': edi_text(f.get(prefix + '.1'), label + ' organization', 60),
             'address': address(f.get(prefix + '.2'), *m.groups(), label)}
 
+def birth_year_from_yy(yy, today=None):
+    """Map a 2-digit birth year onto [today-120, today]. Box 3/11a often store YY only."""
+    today = today or date.today()
+    y2 = int(yy)
+    # Years in the living-person window that end with these two digits.
+    candidates = [y for y in range(today.year - 120, today.year + 1) if y % 100 == y2]
+    require(candidates, f'birth year {yy}: no plausible four-digit year within the last 120 years.')
+    if len(candidates) == 1:
+        return candidates[0]
+    # Ambiguous (e.g. 15 → 1915 or 2015). Prefer 19xx; review shows the full date.
+    return min(candidates)
+
 def parsed_date(mm, dd, yy, label, birth=False):
     require(mm and dd and yy, f'{label}: complete month, day and year required.')
     require(all(re.fullmatch(r'\d+', x) for x in (mm, dd, yy)), f'{label}: numbers only.')
-    if birth:
-        require(len(yy) == 4, f'{label}: enter a FOUR-digit birth year in the PDF to avoid guessing the century.')
+    require(len(yy) in (2, 4), f'{label}: use a two- or four-digit year.')
+    if len(yy) == 4:
+        year = int(yy)
+    elif birth:
+        year = birth_year_from_yy(yy)
     else:
-        require(len(yy) in (2, 4), f'{label}: use a two- or four-digit year.')
-    year = int(yy) + (2000 if len(yy) == 2 else 0)
+        year = int(yy) + 2000
     try:
         d = date(year, int(mm), int(dd))
     except ValueError:
         raise ConversionError(f'{label}: invalid calendar date.')
     if birth:
         require(date(1900, 1, 1) <= d <= date.today(), f'{label}: birth date is out of range.')
+        age = date.today().year - d.year - ((date.today().month, date.today().day) < (d.month, d.day))
+        require(age <= 120, f'{label}: birth date is out of range.')
     else:
         require(2000 <= year <= date.today().year + 1, f'{label}: service year is out of range.')
     return d.strftime('%Y%m%d')
@@ -266,6 +284,41 @@ def money(dollars, cents, label, optional=False):
     val = Decimal(dollars) + Decimal(cents or '0') / 100
     require(val < Decimal('100000000'), f'{label}: amount too large.')
     return f'{val:.2f}'
+
+def load_builtin_payers():
+    path = Path(__file__).parent / 'builtin_payers.json'
+    data = json.loads(path.read_text(encoding='utf-8'))
+    require(isinstance(data.get('payers'), list), 'builtin_payers.json is invalid.')
+    return data['payers']
+
+def resolve_payer(payer_name, config):
+    """User settings with a non-empty id win; otherwise use the built-in payer catalog."""
+    require(payer_name, 'Payer name (carrier heading) is blank on the PDF.')
+    key = payer_name.casefold()
+    user = None
+    for name, entry in (config.get('payers') or {}).items():
+        if name.casefold() == key:
+            user = dict(entry)
+            user['_settings_name'] = name
+            break
+    if user is not None and clean(user.get('id')):
+        require(user.get('confirmed') is True,
+                'Confirm the payer ID override in Settings before converting.')
+        return user
+    for entry in load_builtin_payers():
+        aliases = entry.get('aliases') or []
+        require(isinstance(aliases, list), 'builtin_payers.json aliases must be lists.')
+        if any(clean(alias).casefold() == key for alias in aliases):
+            return {
+                'id': entry['id'],
+                'filing_indicator': entry.get('filing_indicator', 'CI'),
+                'confirmed': True,
+                'builtin': True,
+            }
+    raise ConversionError(
+        f'No built-in payer ID for: {payer_name}. '
+        f'Add an override with: cms-edi-convert settings payer {payer_name!r} PAYER_ID --filing CI --verified'
+    )
 
 def claim_from_fields(f, config):
     # Fail on populated clinical/billing fields that this version does not encode.
@@ -297,13 +350,10 @@ def claim_from_fields(f, config):
     unexpected = [key for key,value in f.items() if value not in ('','/Off','Off') and key not in supported]
     require(not unexpected, 'Unrecognized populated fields (nothing exported): '+', '.join(unexpected))
     payer_name = clean(f.get('cname'))
-    matches = [v for k,v in config.get('payers', {}).items() if k.casefold() == payer_name.casefold()]
-    require(len(matches) == 1, f'Add a payer mapping in Settings for: {payer_name or "(blank payer name)"}.')
-    payer = dict(matches[0])
+    payer = resolve_payer(payer_name, config)
     payer['name'] = edi_text(payer_name, 'Payer name', 60)
-    payer['id'] = identifier(payer.get('id'), 'Stedi payer ID')
+    payer['id'] = identifier(payer.get('id'), 'Payer ID')
     require(payer.get('filing_indicator') in ('CI','BL','HM','OF'), 'Payer filing indicator must be CI, BL, HM, or OF.')
-    require(payer.get('confirmed') is True, 'Confirm the payer ID against Stedi’s payer directory in Settings.')
     patient = person(f.get('two'), 'Box 2 patient name')
     patient['dob'] = parsed_date(f.get('3mm'), f.get('3dd'), f.get('3yy'), 'Box 3 date of birth', True)
     patient['gender'] = {'sexm':'M', 'sexf':'F'}[choose(f, ['sexm','sexf'], 'Box 3 sex')]
@@ -425,8 +475,11 @@ def build_edi(claim, mode='T', control=None, now=None):
     icn = str(secrets.randbelow(999999999)+1).zfill(9)
     tx = '0001'
     segments = []
+    # Collect payload first so the element separator can avoid characters present in the data.
+    # X12 forbids using the active element separator inside any data element (RFI 1815).
+    parts_list = []
     def add(tag,*parts):
-        segments.append('*'.join([tag]+[str(x) for x in parts]).rstrip('*')+'~')
+        parts_list.append([tag]+[str(x) for x in parts])
     add('ST','837',tx,'005010X222A1')
     add('BHT','0019','00',pc,now.strftime('%Y%m%d'),now.strftime('%H%M'),'CH')
     s=claim['submitter']; b=claim['billing']; sub=claim['subscriber']; pt=claim['patient']
@@ -436,7 +489,7 @@ def build_edi(claim, mode='T', control=None, now=None):
         add('N3',a['street']); add('N4',a['city'],a['state'],a['zip'])
     add('NM1','41','2',s['name'],'','','','','46',s['id'])
     add('PER','IC',s['contact'],'TE',s['phone'])
-    add('NM1','40','2','STEDI','','','','','46','STEDI')
+    add('NM1','40','2','CLEARINGHOUSE','','','','','46','CLEARINGHOUSE')
     add('HL','1','','20','1')
     if b['taxonomy']: add('PRV','BI','PXC',b['taxonomy'])
     add('NM1','85','2',b['name'],'','','','','XX',b['npi']); addr(b['address']); add('REF','EI',b['tin'])
@@ -465,11 +518,19 @@ def build_edi(claim, mode='T', control=None, now=None):
         add('SV1',':'.join(['HC',line['code']]+line['modifiers']),line['amount'],'UN',line['units'],line['pos'] if line['pos']!=pos else '','',':'.join(line['pointers']),'','Y' if line['emergency']=='Y' else '')
         add('DTP','472','D8' if line['start']==line['end'] else 'RD8',line['start'] if line['start']==line['end'] else line['start']+'-'+line['end'])
         add('REF','6R',pc+'L'+str(i))
-    add('SE',len(segments)+1,tx)
-    isa='*'.join(['ISA','00',' '*10,'00',' '*10,'ZZ','LOCAL'.ljust(15),'ZZ','STEDI'.ljust(15),now.strftime('%y%m%d'),now.strftime('%H%M'),'^','00501',icn,'0',mode,':'])+'~'
+    payload = ''.join(str(p) for parts in parts_list for p in parts)
+    # Prefer the usual *; use | when * appears in data so values like prior-auth 123*O stay intact.
+    elem = '|' if '*' in payload else '*'
+    require(elem not in payload, f'Claim data contains the element separator {elem!r}; cannot build a valid X12 file.')
+    def join_seg(parts):
+        return elem.join(parts).rstrip(elem) + '~'
+    segments = [join_seg(parts) for parts in parts_list]
+    segments.append(join_seg(['SE', str(len(parts_list)+1), tx]))
+    isa=elem.join(['ISA','00',' '*10,'00',' '*10,'ZZ','LOCAL'.ljust(15),'ZZ','CLEARINGHOUSE'.ljust(15),now.strftime('%y%m%d'),now.strftime('%H%M'),'^','00501',icn,'0',mode,':'])+'~'
     require(len(isa)==106, 'Internal error: malformed ISA length.')
-    gs='*'.join(['GS','HC','LOCAL','STEDI',now.strftime('%Y%m%d'),now.strftime('%H%M'),'1','X','005010X222A1'])+'~'
-    edi='\n'.join([isa,gs]+segments+['GE*1*1~','IEA*1*'+icn+'~'])+'\n'
+    gs=elem.join(['GS','HC','LOCAL','CLEARINGHOUSE',now.strftime('%Y%m%d'),now.strftime('%H%M'),'1','X','005010X222A1'])+'~'
+    trailer = [join_seg(['GE','1','1']), join_seg(['IEA','1',icn])]
+    edi='\n'.join([isa,gs]+segments+trailer)+'\n'
     return edi,pc
 
 def review_text(c):
@@ -501,9 +562,9 @@ def review_text(c):
              'Box 29 must contain actual patient payments, not an estimated copay or an insurer payment.',
              f"Submitter: {c['submitter']['name']} | {c['submitter']['id']} | {c['submitter']['contact']} | {c['submitter']['phone']}",
              '', 'Review every value against the saved PDF. Check DOB centuries and member/subscriber relationship.',
-             'All two-digit service years are interpreted as 20xx. Birth years must contain four digits.',
+             'All two-digit service years are interpreted as 20xx. Two-digit birth years expand within the last 120 years; confirm the full DOB above.',
              'This is a primary commercial claim. The converter does not determine payer rules or coding correctness.',
-             'It creates a local file only. No submission or TheraNest ledger update occurs.']
+             'It creates a local file only. No submission or practice-system update occurs.']
     return '\n'.join(rows)
 
 def load_config(path):

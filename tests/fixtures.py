@@ -21,7 +21,7 @@ def fields():
 def config():
     return {'submitter':{'name':'SYNTHETIC TEST PRACTICE','id':'LOCALTEST','contact':'TEST CONTACT','phone':'8005550100'},
         'billing_taxonomy':'',
-        'payers':{'SYNTHETIC TEST PAYER':{'id':'STEDITEST','filing_indicator':'CI','confirmed':True,'test_only':True}},
+        'payers':{'SYNTHETIC TEST PAYER':{'id':'TESTPAYER','filing_indicator':'CI','confirmed':True,'test_only':True}},
         'rendering_providers':{'1999999984':{'first':'TEST','last':'PROVIDER','middle':'','taxonomy':''}}}
 
 def make_pdf(path, values=None):

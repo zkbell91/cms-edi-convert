@@ -25,14 +25,14 @@ class App:
     def __init__(self, root):
         self.root=root;self.claim=None;self.snapshot=None;self.last_output=None
         self.config_path=ensure_settings()
-        root.title('CMS-1500 → Stedi file');root.geometry('1060x820');root.minsize(850,660)
+        root.title('CMS-1500 → 837P');root.geometry('1060x820');root.minsize(850,660)
         style=ttk.Style(root);style.theme_use('clam')
         style.configure('TFrame',background='#f4f6f9');style.configure('TLabel',background='#f4f6f9',font=('Helvetica',11))
         style.configure('Title.TLabel',font=('Helvetica',22,'bold'),foreground='#173450')
         style.configure('TButton',font=('Helvetica',11),padding=9)
         style.configure('Accent.TButton',background='#173450',foreground='white')
         frame=ttk.Frame(root,padding=24);frame.pack(fill='both',expand=True)
-        ttk.Label(frame,text='CMS-1500 → Stedi file',style='Title.TLabel').pack(anchor='w')
+        ttk.Label(frame,text='CMS-1500 → 837P',style='Title.TLabel').pack(anchor='w')
         ttk.Label(frame,text='Edit your fillable PDF • review the extracted claim • save an 837P file',wraplength=950).pack(anchor='w',pady=(5,14))
         bar=ttk.Frame(frame);bar.pack(fill='x')
         ttk.Button(bar,text='1  Choose edited PDF',command=self.choose_pdf,style='Accent.TButton').pack(side='left')
@@ -41,7 +41,7 @@ class App:
         ttk.Button(bar,text='Refresh PDF fields',command=self.refresh).pack(side='left',padx=9)
         ttk.Button(bar,text='Instructions',command=lambda:open_file(ROOT/'START_HERE.html')).pack(side='right')
         self.path=tk.StringVar();ttk.Label(frame,textvariable=self.path,wraplength=960).pack(anchor='w',pady=(12,3))
-        self.status=tk.StringVar(value='Select a saved, fillable TheraNest CMS-1500 PDF. No data leaves this computer.')
+        self.status=tk.StringVar(value='Select a saved, fillable CMS-1500 PDF. No data leaves this computer.')
         ttk.Label(frame,textvariable=self.status,wraplength=960,foreground='#344b63').pack(anchor='w',pady=(4,10))
         self.text=ScrolledText(frame,wrap='word',font=('Menlo',11),bg='white',fg='#172f46',padx=15,pady=15)
         self.text.pack(fill='both',expand=True);self.show('Your claim review will appear here.\n\nThis version supports the supplied fillable template, primary commercial outpatient claims, and up to six service lines.\n\nUse the PDF’s actual form fields. Flattened PDFs, image-only PDFs, and added markup are not supported.\n\nThe app stops on missing information, conflicting field appearances, and unsupported populated claim fields.')
@@ -52,7 +52,7 @@ class App:
         self.mode=tk.StringVar(value='Test file')
         ttk.Combobox(bottom,textvariable=self.mode,values=['Test file','Production file'],state='readonly',width=17).pack(side='left',padx=12)
         self.generate=ttk.Button(bottom,text='3  Save EDI file',style='Accent.TButton',command=self.save,state='disabled');self.generate.pack(side='right')
-        ttk.Label(frame,text='Test is the default. A production file is sent to the payer only if you later submit it through Stedi.',wraplength=960).pack(anchor='w',pady=(9,0))
+        ttk.Label(frame,text='Test is the default. A production file reaches a payer only after you submit it through your clearinghouse.',wraplength=960).pack(anchor='w',pady=(9,0))
     def show(self,text):
         self.text.configure(state='normal');self.text.delete('1.0','end');self.text.insert('1.0',text);self.text.configure(state='disabled')
     def choose_pdf(self):
@@ -98,7 +98,7 @@ class App:
             result=export_bundle(self.path.get(),self.config_path,folder,mode,*self.snapshot)
             self.last_output=result;self.generate.configure(state='disabled')
             self.status.set('Saved locally. Nothing was submitted. Choose the PDF again to prepare another file.')
-            messagebox.showinfo('Saved',f'Saved {result.name}\n\nIncludes the .edi file, a readable review, and a claim-ID crosswalk.\n\nNothing was submitted to Stedi or a payer.')
+            messagebox.showinfo('Saved',f'Saved {result.name}\n\nIncludes the .edi file, a readable review, and a claim-ID crosswalk.\n\nNothing was submitted to a clearinghouse or payer.')
             open_file(result)
         except Exception as exc: messagebox.showerror('Cannot export',str(exc))
     def settings(self):
@@ -120,10 +120,10 @@ class App:
         ttk.Separator(box).grid(row=row,column=0,columnspan=2,sticky='ew',pady=9);row+=1
         payer_keys=list(cfg.get('payers',{}));payer=payer_keys[0] if payer_keys else ''
         picker=entry('payer_name','Payer name exactly as printed',payer,payer_keys)
-        entry('payer_id','Stedi payer ID (keep leading zeros)')
+        entry('payer_id','Payer ID (keep leading zeros)')
         entry('filing','Filing code: CI / BL / HM / OF','CI',['CI','BL','HM','OF'])
         confirmed=tk.BooleanVar()
-        ttk.Checkbutton(box,text='I verified this payer ID in Stedi’s payer directory.',variable=confirmed).grid(row=row,column=0,columnspan=2,sticky='w',pady=5);row+=1
+        ttk.Checkbutton(box,text='I verified this payer ID for professional claims.',variable=confirmed).grid(row=row,column=0,columnspan=2,sticky='w',pady=5);row+=1
         def payer_changed(event=None):
             v=cfg.get('payers',{}).get(entries['payer_name'].get(),{})
             entries['payer_id'].set(v.get('id',''));entries['filing'].set(v.get('filing_indicator','CI'));confirmed.set(v.get('confirmed',False))

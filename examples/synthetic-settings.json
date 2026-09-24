@@ -8,7 +8,7 @@
   "billing_taxonomy": "",
   "payers": {
     "SYNTHETIC TEST PAYER": {
-      "id": "STEDITEST",
+      "id": "TESTPAYER",
       "filing_indicator": "CI",
       "confirmed": true,
       "test_only": true
